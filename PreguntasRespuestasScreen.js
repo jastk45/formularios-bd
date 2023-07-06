@@ -2,30 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, TextInput, ScrollView, Text, Button, Alert, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { useForm, Controller } from 'react-hook-form';
+
 
 const PreguntasRespuestasScreen = ({ route }) => {
   const { textos, materia } = route.params;
-  const [preguntasRespuestas, setPreguntasRespuestas] = useState(textos);
-
-    const [datosGuardados, setDatosGuardados] = useState([]);
-  const [aviso, setAviso] = useState('');
-  const [foto, setFoto] = useState(null);
+  const { control, handleSubmit, setValue, formState: { errors } } = useForm();
+  const [preguntasRespuestas, setPreguntasRespuestas] = React.useState(textos);
+  const [datosCargados, setDatosCargados] = useState([]);
+  const [datosGuardados, setDatosGuardados] = useState([]);
+  const [aviso, setAviso] = React.useState('');
+  const [foto, setFoto] = React.useState(null);
 
   useEffect(() => {
-    obtenerDatosGuardados();
-  }, []);
-
-  const obtenerDatosGuardados = async () => {
-    try {
-      const datosExistentes = await AsyncStorage.getItem('datosFormulario');
-      if (datosExistentes) {
-        const datos = JSON.parse(datosExistentes);
-        setDatosGuardados(datos);
-      }
-    } catch (error) {
-      console.log('Error al obtener los datos guardados:', error);
+    if (!datosCargados) {
+      obtenerDatosGuardados();
+      setDatosCargados(true);
     }
-  };
+  }, [datosCargados]);
+
+const obtenerDatosGuardados = async () => {
+  try {
+    const datosExistentes = await AsyncStorage.getItem('datosFormulario');
+    if (datosExistentes) {
+      const datos = JSON.parse(datosExistentes);
+      setDatosGuardados(datos);
+    }
+  } catch (error) {
+    console.log('Error al obtener los datos guardados:', error);
+  }
+};
 
   const modificarTexto = (index, campo, value) => {
     const nuevosTextos = [...preguntasRespuestas];
@@ -60,15 +66,17 @@ const PreguntasRespuestasScreen = ({ route }) => {
   const guardarDatos = async () => {
     try {
       const preguntasRespuestasFiltradas = preguntasRespuestas.filter(
-        (texto) => !datosGuardados.some((dato) => dato.pregunta === texto.pregunta && dato.respuesta === texto.respuesta)
+        (texto) => !datosGuardados.some(
+          (dato) => dato.pregunta === texto.pregunta && dato.respuesta === texto.respuesta
+        )
       );
-
+  
       if (preguntasRespuestasFiltradas.length > 0) {
         const nuevosDatos = [...datosGuardados, ...preguntasRespuestasFiltradas];
         await AsyncStorage.setItem('datosFormulario', JSON.stringify(nuevosDatos));
         console.log('Datos guardados exitosamente');
-        setDatosGuardados(nuevosDatos);
         setAviso('Datos guardados exitosamente');
+        setDatosGuardados(nuevosDatos);
       } else {
         setAviso('No se encontraron nuevos datos para guardar');
       }
@@ -77,50 +85,77 @@ const PreguntasRespuestasScreen = ({ route }) => {
       setAviso('Error al guardar los datos');
     }
   };
+  
+  
+  
+
+  const onSubmit = (data) => {
+    guardarDatos(data);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Bienvenido al formulario de {materia}</Text>
 
-      {preguntasRespuestas.map((texto, index) => (
-        <View key={index} style={styles.questionContainer}>
-          <View style={styles.row}>
-            <TextInput
-              style={styles.textInput}
-              multiline={true}
-              value={texto.pregunta}
-              onChangeText={(value) => modificarTexto(index, 'pregunta', value)}
-              placeholder={`Ingrese la pregunta ${index + 1}`}
-              placeholderTextColor="grey"
-            />
+      <ScrollView keyboardShouldPersistTaps="handled">
+        {preguntasRespuestas.map((texto, index) => (
+          <View key={index} style={styles.questionContainer}>
+            <View style={styles.row}>
+              <Controller
+                control={control}
+                name={`pregunta[${index}]`}
+                defaultValue={texto.pregunta}
+                rules={{ required: true }}
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    style={styles.textInput}
+                    multiline={true}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder={`Ingrese la pregunta ${index + 1}`}
+                    placeholderTextColor="grey"
+                  />
+                )}
+              />
+              {errors.pregunta && <Text style={styles.errorText}>Este campo es requerido</Text>}
+            </View>
+            <View style={styles.row}>
+              <Controller
+                control={control}
+                name={`respuesta[${index}]`}
+                defaultValue={texto.respuesta}
+                rules={{ required: true }}
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    style={styles.textInput}
+                    multiline={true}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder={`Ingrese la respuesta ${index + 1}`}
+                    placeholderTextColor="grey"
+                  />
+                )}
+              />
+              {errors.respuesta && <Text style={styles.errorText}>Este campo es requerido</Text>}
+            </View>
+            <Button title="Tomar Foto" onPress={() => tomarFoto(index)} />
+            {texto.foto && <Image source={{ uri: texto.foto }} style={styles.image} />}
           </View>
-          <View style={styles.row}>
-            <TextInput
-              style={styles.textInput}
-              multiline={true}
-              value={texto.respuesta}
-              onChangeText={(value) => modificarTexto(index, 'respuesta', value)}
-              placeholder={`Ingrese la respuesta ${index + 1}`}
-              placeholderTextColor="grey"
-            />
-          </View>
-          <Button title="Tomar Foto" onPress={() => tomarFoto(index)} />
-          {texto.foto && <Image source={{ uri: texto.foto }} style={styles.image} />}
-        </View>
-      ))}
-      <Button title="Guardar" onPress={guardarDatos} />
+        ))}
+      </ScrollView>
+
+      <Button title="Guardar" onPress={() => handleSubmit(guardarDatos)()} />
       {aviso !== '' && <Text style={styles.aviso}>{aviso}</Text>}
     </ScrollView>
-  ); 
-  
+  );
 };
-
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   title: {
     fontSize: 24,
@@ -132,7 +167,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   textInput: {
- 
+    width: '100%',
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingLeft: 8,
+    marginBottom:8,
+  },
+  questionContainer: {
+    marginBottom: 16,
   },
   image: {
     width: 200,
@@ -145,11 +189,9 @@ const styles = StyleSheet.create({
     color: 'red',
     marginTop: 16,
   },
-  inputContainer: {
-    flex: 1,
-  },
-  buttonContainer: {
-    alignSelf: 'flex-start',
+  errorText: {
+    color: 'red',
+    marginBottom: 8,
   },
 });
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Button, TextInput } from 'react-native';
 
+
 const HomeScreen = ({ navigation }) => {
   const [numPreguntas, setNumPreguntas] = useState('');
   const [materia, setMateria] = useState('');
