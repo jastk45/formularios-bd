@@ -11,10 +11,10 @@ const HomeScreen = ({ navigation }) => {
       const nuevosTextos = Array.from({ length: cantidadPreguntas }, () => ({
         pregunta: '',
         respuesta: '',
-        editable: true
+        foto: null
       }));
-
-      navigation.navigate('PreguntasRespuestas', { textos: nuevosTextos, materia });
+  
+      navigation.navigate('PreguntasRespuestas', { textos: nuevosTextos, materia: materia });
     }
   };
 
