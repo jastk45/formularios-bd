@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, ScrollView, Text, Button, Alert, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
-import { useForm, Controller } from 'react-hook-form';
-
+import React, { useState, useEffect } from "react";
+import { StyleSheet, View, ScrollView, Text, Alert, Image } from "react-native";
+import { Button, TextInput } from "react-native-paper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
+import { useForm, Controller } from "react-hook-form";
+import { useNavigation } from "@react-navigation/native";
 
 const PreguntasRespuestasScreen = ({ route }) => {
+  const navigation = useNavigation();
   const { textos, materia } = route.params;
-  const { control, handleSubmit, setValue, formState: { errors } } = useForm();
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm();
   const [preguntasRespuestas, setPreguntasRespuestas] = React.useState(textos);
   const [datosCargados, setDatosCargados] = useState([]);
   const [datosGuardados, setDatosGuardados] = useState([]);
-  const [aviso, setAviso] = React.useState('');
+  const [aviso, setAviso] = React.useState("");
   const [foto, setFoto] = React.useState(null);
 
   useEffect(() => {
@@ -21,17 +28,42 @@ const PreguntasRespuestasScreen = ({ route }) => {
     }
   }, [datosCargados]);
 
-const obtenerDatosGuardados = async () => {
-  try {
-    const datosExistentes = await AsyncStorage.getItem('datosFormulario');
-    if (datosExistentes) {
-      const datos = JSON.parse(datosExistentes);
-      setDatosGuardados(datos);
+  useEffect(
+    () =>
+      navigation.addListener("beforeRemove", (e) => {
+        // Prevent default behavior of leaving the screen
+        e.preventDefault();
+
+        // Prompt the user before leaving the screen
+        Alert.alert(
+          "Estas seguro de regresar?",
+          "Perderas todos los cambios que no hayas guardado",
+          [
+            { text: "Seguir aquí", style: "cancel", onPress: () => { } },
+            {
+              text: "Salir",
+              style: "destructive",
+              // If the user confirmed, then we dispatch the action we blocked earlier
+              // This will continue the action that had triggered the removal of the screen
+              onPress: () => navigation.dispatch(e.data.action),
+            },
+          ]
+        );
+      }),
+    [navigation]
+  );
+
+  const obtenerDatosGuardados = async () => {
+    try {
+      const datosExistentes = await AsyncStorage.getItem("datosFormulario");
+      if (datosExistentes) {
+        const datos = JSON.parse(datosExistentes);
+        setDatosGuardados(datos);
+      }
+    } catch (error) {
+      console.log("Error al obtener los datos guardados:", error);
     }
-  } catch (error) {
-    console.log('Error al obtener los datos guardados:', error);
-  }
-};
+  };
 
   const modificarTexto = (index, campo, value) => {
     const nuevosTextos = [...preguntasRespuestas];
@@ -44,14 +76,14 @@ const obtenerDatosGuardados = async () => {
       let permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
       if (permissionResult.granted === false) {
-        Alert.alert('Permiso denegado para acceder a la cámara');
+        Alert.alert("Permiso denegado para acceder a la cámara");
         return;
       }
 
       let pickerResult = await ImagePicker.launchCameraAsync();
 
       if (pickerResult.canceled === true) {
-        console.log('Selección de foto cancelada');
+        console.log("Selección de foto cancelada");
         return;
       }
 
@@ -59,35 +91,41 @@ const obtenerDatosGuardados = async () => {
       nuevosTextos[index].foto = pickerResult.assets[0].uri;
       setPreguntasRespuestas(nuevosTextos);
     } catch (error) {
-      console.log('Error al tomar la foto:', error);
+      console.log("Error al tomar la foto:", error);
     }
   };
 
   const guardarDatos = async () => {
     try {
       const preguntasRespuestasFiltradas = preguntasRespuestas.filter(
-        (texto) => !datosGuardados.some(
-          (dato) => dato.pregunta === texto.pregunta && dato.respuesta === texto.respuesta
-        )
+        (texto) =>
+          !datosGuardados.some(
+            (dato) =>
+              dato.pregunta === texto.pregunta &&
+              dato.respuesta === texto.respuesta
+          )
       );
-  
+
       if (preguntasRespuestasFiltradas.length > 0) {
-        const nuevosDatos = [...datosGuardados, ...preguntasRespuestasFiltradas];
-        await AsyncStorage.setItem('datosFormulario', JSON.stringify(nuevosDatos));
-        console.log('Datos guardados exitosamente');
-        setAviso('Datos guardados exitosamente');
+        const nuevosDatos = [
+          ...datosGuardados,
+          ...preguntasRespuestasFiltradas,
+        ];
+        await AsyncStorage.setItem(
+          "datosFormulario",
+          JSON.stringify(nuevosDatos)
+        );
+        console.log("Datos guardados exitosamente");
+        setAviso("Datos guardados exitosamente");
         setDatosGuardados(nuevosDatos);
       } else {
-        setAviso('No se encontraron nuevos datos para guardar');
+        setAviso("No se encontraron nuevos datos para guardar");
       }
     } catch (error) {
-      console.log('Error al guardar los datos:', error);
-      setAviso('Error al guardar los datos');
+      console.log("Error al guardar los datos:", error);
+      setAviso("Error al guardar los datos");
     }
   };
-  
-  
-  
 
   const onSubmit = (data) => {
     guardarDatos(data);
@@ -108,6 +146,7 @@ const obtenerDatosGuardados = async () => {
                 rules={{ required: true }}
                 render={({ field: { onChange, value } }) => (
                   <TextInput
+                    mode="contained"
                     style={styles.textInput}
                     multiline={true}
                     value={value}
@@ -117,7 +156,9 @@ const obtenerDatosGuardados = async () => {
                   />
                 )}
               />
-              {errors.pregunta && <Text style={styles.errorText}>Este campo es requerido</Text>}
+              {errors.pregunta && (
+                <Text style={styles.errorText}>Este campo es requerido</Text>
+              )}
             </View>
             <View style={styles.row}>
               <Controller
@@ -127,6 +168,7 @@ const obtenerDatosGuardados = async () => {
                 rules={{ required: true }}
                 render={({ field: { onChange, value } }) => (
                   <TextInput
+                    mode="contained"
                     style={styles.textInput}
                     multiline={true}
                     value={value}
@@ -136,16 +178,22 @@ const obtenerDatosGuardados = async () => {
                   />
                 )}
               />
-              {errors.respuesta && <Text style={styles.errorText}>Este campo es requerido</Text>}
+              {errors.respuesta && (
+                <Text style={styles.errorText}>Este campo es requerido</Text>
+              )}
             </View>
-            <Button title="Tomar Foto" onPress={() => tomarFoto(index)} />
-            {texto.foto && <Image source={{ uri: texto.foto }} style={styles.image} />}
+            <Button mode="contained" onPress={() => tomarFoto(index)}>
+              Tomar foto
+            </Button>
+            {texto.foto && (
+              <Image source={{ uri: texto.foto }} style={styles.image} />
+            )}
           </View>
         ))}
       </ScrollView>
 
       <Button title="Guardar" onPress={() => handleSubmit(guardarDatos)()} />
-      {aviso !== '' && <Text style={styles.aviso}>{aviso}</Text>}
+      {aviso !== "" && <Text style={styles.aviso}>{aviso}</Text>}
     </ScrollView>
   );
 };
@@ -153,30 +201,24 @@ const obtenerDatosGuardados = async () => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
+    padding: 25,
+    alignItems: "center",
+    justifyContent: "flex-start",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 16,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 8,
   },
   textInput: {
-    width: '100%',
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingLeft: 8,
-    marginBottom:8,
+    width: "100%",
   },
   questionContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   image: {
     width: 200,
@@ -186,11 +228,11 @@ const styles = StyleSheet.create({
   },
   aviso: {
     fontSize: 16,
-    color: 'red',
+    color: "red",
     marginTop: 16,
   },
   errorText: {
-    color: 'red',
+    color: "red",
     marginBottom: 8,
   },
 });
