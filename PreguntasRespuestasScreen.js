@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
+import axios from "axios";
 
 const PreguntasRespuestasScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -128,6 +129,27 @@ const PreguntasRespuestasScreen = ({ route }) => {
   };
 
   const onSubmit = (data) => {
+    const dt = new Date()
+    const formattedData = {
+      form_name: materia, // Puedes reemplazar esto con el nombre que desees
+      questions: data.pregunta.map((question, index) => ({
+        question_text: question,
+        answer: data.respuesta[index],
+      })),
+      latitude: "2.12331",
+      longitude: "1.12332",
+      datetime: dt.toISOString()
+    };
+  
+    console.log(formattedData);
+   axios.post('http://192.168.41.160:8080/form', formattedData)
+    .then(res => {
+      console.log(res);
+    })
+    .catch(err => {
+      console.log(err);
+    });
+    console.log(data);
     guardarDatos(data);
   };
 
@@ -192,8 +214,9 @@ const PreguntasRespuestasScreen = ({ route }) => {
         ))}
       </ScrollView>
 
-      <Button title="Guardar" onPress={() => handleSubmit(guardarDatos)()} />
-      {aviso !== "" && <Text style={styles.aviso}>{aviso}</Text>}
+      <Button mode="contained" onPress={() => handleSubmit(onSubmit)()}>
+        Guardar
+      </Button>
     </ScrollView>
   );
 };
