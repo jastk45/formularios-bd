@@ -6,6 +6,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
+import * as Location from 'expo-location';
 
 const PreguntasRespuestasScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -21,6 +22,10 @@ const PreguntasRespuestasScreen = ({ route }) => {
   const [datosGuardados, setDatosGuardados] = useState([]);
   const [aviso, setAviso] = React.useState("");
   const [foto, setFoto] = React.useState(null);
+   const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [latitude, setLatitude] = useState(null);
 
   useEffect(() => {
     if (!datosCargados) {
@@ -53,6 +58,22 @@ const PreguntasRespuestasScreen = ({ route }) => {
       }),
     [navigation]
   );
+
+  useEffect(() => {
+    (async () => {
+      
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permission to access location was denied');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      console.log("LOCACION", location)
+      setLatitude(location.coords.latitude);
+      setLongitude(location.coords.longitude);
+    })();
+  }, []);
 
   const obtenerDatosGuardados = async () => {
     try {
@@ -136,10 +157,12 @@ const PreguntasRespuestasScreen = ({ route }) => {
         question_text: question,
         answer: data.respuesta[index],
       })),
-      latitude: "2.12331",
-      longitude: "1.12332",
+      latitude: latitude,
+      longitude: longitude,
       datetime: dt.toISOString()
     };
+
+    console.log("DATA TO SERVER", formattedData);
   
     console.log(formattedData);
    axios.post('http://192.168.41.160:8080/form', formattedData)
@@ -153,9 +176,14 @@ const PreguntasRespuestasScreen = ({ route }) => {
     guardarDatos(data);
   };
 
+  let text = ""
+  text = errorMsg;
+
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Bienvenido al formulario de {materia}</Text>
+      <Text style={styles.paragraph}>{text}</Text>
 
       <ScrollView keyboardShouldPersistTaps="handled">
         {preguntasRespuestas.map((texto, index) => (
