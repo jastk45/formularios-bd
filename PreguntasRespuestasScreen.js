@@ -7,6 +7,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import * as Location from 'expo-location';
+import * as FileSystem from 'expo-file-system';
 
 const PreguntasRespuestasScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -109,8 +110,9 @@ const PreguntasRespuestasScreen = ({ route }) => {
         return;
       }
 
+      const base64data = await FileSystem.readAsStringAsync(pickerResult.assets[0].uri, { encoding: 'base64' });
       const nuevosTextos = [...preguntasRespuestas];
-      nuevosTextos[index].foto = pickerResult.assets[0].uri;
+      nuevosTextos[index].foto = nuevosTextos[index].foto ? [...nuevosTextos[index].foto, base64data] : [base64data];
       setPreguntasRespuestas(nuevosTextos);
     } catch (error) {
       console.log("Error al tomar la foto:", error);
@@ -152,25 +154,29 @@ const PreguntasRespuestasScreen = ({ route }) => {
   const onSubmit = (data) => {
     const dt = new Date()
     const formattedData = {
-      form_name: materia, // Puedes reemplazar esto con el nombre que desees
+      form_name: materia, 
       questions: data.pregunta.map((question, index) => ({
         question_text: question,
         answer: data.respuesta[index],
       })),
       latitude: latitude,
       longitude: longitude,
-      datetime: dt.toISOString()
+      datetime: dt.toISOString(),
+      photo: preguntasRespuestas.flatMap(texto => texto.foto || []), 
+
     };
 
     console.log("DATA TO SERVER", formattedData);
   
     console.log(formattedData);
-   axios.post('http://192.168.41.160:8080/form', formattedData)
+   axios.post('http://192.168.111.160:8000/form', formattedData)
     .then(res => {
       console.log(res);
+      navigation.navigate("Home")
     })
     .catch(err => {
       console.log(err);
+      navigation.navigate("Home")
     });
     console.log(data);
     guardarDatos(data);
@@ -235,9 +241,9 @@ const PreguntasRespuestasScreen = ({ route }) => {
             <Button mode="contained" onPress={() => tomarFoto(index)}>
               Tomar foto
             </Button>
-            {texto.foto && (
-              <Image source={{ uri: texto.foto }} style={styles.image} />
-            )}
+            {texto.foto && texto.foto.map((foto, index) => (
+             <Image key={index} source={{ uri: `data:image/png;base64,${foto}` }} style={styles.image} />
+              ))}
           </View>
         ))}
       </ScrollView>
